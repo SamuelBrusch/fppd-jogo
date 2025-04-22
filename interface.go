@@ -57,13 +57,15 @@ func interfaceLerEventoTeclado() EventoTeclado {
 }
 
 // Renderiza todo o estado atual do jogo na tela
-func interfaceDesenharJogo(jogo *Jogo) {
+func interfaceDesenharJogo(jogo *Jogo, anciao *Anciao) {
 	interfaceLimparTela()
 
 	// Desenha todos os elementos do mapa
 	for y, linha := range jogo.Mapa {
 		for x, elem := range linha {
-			interfaceDesenharElemento(x, y, elem)
+			if elem.simbolo != AnciaoElem.simbolo {
+				interfaceDesenharElemento(x, y, elem)
+			}
 		}
 	}
 

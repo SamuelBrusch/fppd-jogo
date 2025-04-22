@@ -25,6 +25,7 @@ type Jogo struct {
 
 // Elementos visuais do jogo
 var (
+	AnciaoElem = Elemento{'A', CorVerde, CorPadrao, false} 
 	Personagem = Elemento{'☺', CorCinzaEscuro, CorPadrao, true}
 	Inimigo    = Elemento{'☠', CorVermelho, CorPadrao, true}
 	Parede     = Elemento{'▤', CorParede, CorFundoParede, true}
@@ -40,7 +41,7 @@ func jogoNovo() Jogo {
 }
 
 // Lê um arquivo texto linha por linha e constrói o mapa do jogo
-func jogoCarregarMapa(nome string, jogo *Jogo) error {
+func jogoCarregarMapa(nome string, jogo *Jogo, anciao *Anciao) error {
 	arq, err := os.Open(nome)
 	if err != nil {
 		return err
@@ -55,6 +56,9 @@ func jogoCarregarMapa(nome string, jogo *Jogo) error {
 		for x, ch := range linha {
 			e := Vazio
 			switch ch {
+			case AnciaoElem.simbolo:
+				anciao.X, anciao.Y = x, y
+				e = AnciaoElem
 			case Parede.simbolo:
 				e = Parede
 			case Inimigo.simbolo:

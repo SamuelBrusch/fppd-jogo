@@ -16,19 +16,19 @@ func main() {
 
 	// Inicializa o jogo
 	jogo := jogoNovo()
-	if err := jogoCarregarMapa(mapaFile, &jogo); err != nil {
+	anciao := &Anciao{}
+	if err := jogoCarregarMapa(mapaFile, &jogo, anciao); err != nil {
 		panic(err)
 	}
 
-	// Desenha o estado inicial do jogo
-	interfaceDesenharJogo(&jogo)
+	go anciao.mover(&jogo)
 
 	// Loop principal de entrada
 	for {
+		interfaceDesenharJogo(&jogo, anciao)
 		evento := interfaceLerEventoTeclado()
 		if continuar := personagemExecutarAcao(evento, &jogo); !continuar {
 			break
 		}
-		interfaceDesenharJogo(&jogo)
 	}
 }
