@@ -57,7 +57,7 @@ func interfaceLerEventoTeclado() EventoTeclado {
 }
 
 // Renderiza todo o estado atual do jogo na tela
-func interfaceDesenharJogo(jogo *Jogo, anciao *Anciao) {
+func interfaceDesenharJogo(jogo *Jogo, anciao *Anciao, inimigos []*Inimigo) {
 	interfaceLimparTela()
 
 	// Desenha todos os elementos do mapa
@@ -68,6 +68,12 @@ func interfaceDesenharJogo(jogo *Jogo, anciao *Anciao) {
 			}
 		}
 	}
+
+	for _, inimigo := range inimigos {
+        if inimigo.ativo {
+            interfaceDesenharElemento(inimigo.X, inimigo.Y, InimigoElem)
+        }
+    }
 
 	// Desenha o personagem sobre o mapa
 	interfaceDesenharElemento(jogo.PosX, jogo.PosY, Personagem)

@@ -5,32 +5,47 @@ package main
 func personagemMover(tecla rune, jogo *Jogo) {
 	dx, dy := 0, 0
 	switch tecla {
-	case 'w': dy = -1 // Move para cima
-	case 'a': dx = -1 // Move para a esquerda
-	case 's': dy = 1  // Move para baixo
-	case 'd': dx = 1  // Move para a direita
+	case 'w': dy = -1 
+	case 'a': dx = -1
+	case 's': dy = 1  
+	case 'd': dx = 1 
 	}
 
 	nx, ny := jogo.PosX+dx, jogo.PosY+dy
-	// Verifica se o movimento é permitido e realiza a movimentação
 	if jogoPodeMoverPara(jogo, nx, ny) {
 		jogoMoverElemento(jogo, jogo.PosX, jogo.PosY, dx, dy)
 		jogo.PosX, jogo.PosY = nx, ny
-	}
+    }
 }
 
-// Processa o evento do teclado e executa a ação correspondente
-func personagemExecutarAcao(ev EventoTeclado, jogo *Jogo) bool {
-	switch ev.Tipo {
-	case "sair":
-		// Retorna false para indicar que o jogo deve terminar
-		return false
-	case "interagir":
-		// Executa a ação de interação
-		jogoInteragir(jogo)
-	case "mover":
-		// Move o personagem com base na tecla
-		personagemMover(ev.Tecla, jogo)
-	}
-	return true // Continua o jogo
+
+func personagemExecutarAcao(ev EventoTeclado, jogo *Jogo, inimigos []*Inimigo) bool {
+    switch ev.Tipo {
+    case "sair":
+        return false
+        
+    case "interagir":
+        if jogo.Mapa[jogo.PosY][jogo.PosX].simbolo == AnciaoElem.simbolo {
+            for _, inimigo := range inimigos {
+                inimigo.ativo = true
+            }
+            jogo.StatusMsg = "Ancião: Cuidado com os inimigos!"
+        }
+        
+        for _, inimigo := range inimigos {
+            if distancia(inimigo.X, inimigo.Y, jogo.PosX, jogo.PosY) <= 2 {
+                inimigo.comando <- "parar"
+                jogo.Mapa[inimigo.Y][inimigo.X] = Vazio
+                jogo.StatusMsg = "Inimigo eliminado!"
+            }
+        }
+        return true
+        
+    case "mover":
+        personagemMover(ev.Tecla, jogo)
+        return true
+        
+    default:
+        return true
+    }
 }

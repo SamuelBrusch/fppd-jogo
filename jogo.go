@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"bufio"
 	"os"
+	"sync"
 )
 
 // Elemento representa qualquer objeto do mapa (parede, personagem, vegetação, etc)
@@ -21,13 +22,14 @@ type Jogo struct {
 	PosX, PosY      int          // posição atual do personagem
 	UltimoVisitado  Elemento     // elemento que estava na posição do personagem antes de mover
 	StatusMsg       string       // mensagem para a barra de status
+	Mutex     sync.Mutex
 }
 
 // Elementos visuais do jogo
 var (
 	AnciaoElem = Elemento{'A', CorVerde, CorPadrao, false} 
 	Personagem = Elemento{'☺', CorCinzaEscuro, CorPadrao, true}
-	Inimigo    = Elemento{'☠', CorVermelho, CorPadrao, true}
+	InimigoElem= Elemento{'☠', CorVermelho, CorPadrao, true}
 	Parede     = Elemento{'▤', CorParede, CorFundoParede, true}
 	Vegetacao  = Elemento{'♣', CorVerde, CorPadrao, false}
 	Vazio      = Elemento{' ', CorPadrao, CorPadrao, false}
@@ -41,42 +43,54 @@ func jogoNovo() Jogo {
 }
 
 // Lê um arquivo texto linha por linha e constrói o mapa do jogo
-func jogoCarregarMapa(nome string, jogo *Jogo, anciao *Anciao) error {
+func jogoCarregarMapa(nome string, jogo *Jogo, anciao *Anciao) ([]*Inimigo, chan struct{}, error) {
+    startChan := make(chan struct{})
 	arq, err := os.Open(nome)
-	if err != nil {
-		return err
-	}
-	defer arq.Close()
+    if err != nil {
+		return nil, nil, err
+    }
+    defer arq.Close()
 
-	scanner := bufio.NewScanner(arq)
-	y := 0
-	for scanner.Scan() {
-		linha := scanner.Text()
-		var linhaElems []Elemento
-		for x, ch := range linha {
-			e := Vazio
-			switch ch {
-			case AnciaoElem.simbolo:
-				anciao.X, anciao.Y = x, y
-				e = AnciaoElem
-			case Parede.simbolo:
-				e = Parede
-			case Inimigo.simbolo:
-				e = Inimigo
-			case Vegetacao.simbolo:
-				e = Vegetacao
-			case Personagem.simbolo:
-				jogo.PosX, jogo.PosY = x, y // registra a posição inicial do personagem
-			}
-			linhaElems = append(linhaElems, e)
-		}
-		jogo.Mapa = append(jogo.Mapa, linhaElems)
-		y++
-	}
-	if err := scanner.Err(); err != nil {
-		return err
-	}
-	return nil
+    var inimigos []*Inimigo
+    var mapa [][]Elemento  // Criamos um mapa temporário
+
+    scanner := bufio.NewScanner(arq)
+    for y := 0; scanner.Scan(); y++ {
+        linha := scanner.Text()
+        var linhaElems []Elemento
+        
+        for x, ch := range linha {
+            e := Vazio
+            switch ch {
+            case AnciaoElem.simbolo:
+                anciao.X, anciao.Y = x, y
+                e = Vazio  // Remove o ancião do mapa estático
+            case Parede.simbolo:
+                e = Parede
+            case InimigoElem.simbolo:
+                inimigos = append(inimigos, &Inimigo{
+                    X: x,
+                    Y: y,
+                    ativo: false,
+                })
+                e = Vazio  // Remove o inimigo do mapa estático
+            case Vegetacao.simbolo:
+                e = Vegetacao
+            case Personagem.simbolo:
+                jogo.PosX, jogo.PosY = x, y
+                e = Vazio  // Personagem será desenhado separadamente
+            }
+            linhaElems = append(linhaElems, e)
+        }
+        mapa = append(mapa, linhaElems)
+    }
+
+    jogo.Mapa = mapa  // Atribui o mapa completo ao jogo
+    
+    if err := scanner.Err(); err != nil {
+        return nil, nil, err
+    }
+    return inimigos, startChan, nil
 }
 
 // Verifica se o personagem pode se mover para a posição (x, y)
