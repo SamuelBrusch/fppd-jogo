@@ -1,7 +1,10 @@
 // personagem.go - Funções para movimentação e ações do personagem
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"math/rand"
+)
 
 // Atualiza a posição do personagem com base na tecla pressionada (WASD)
 func personagemMover(tecla rune, jogo *Jogo) {
@@ -47,6 +50,12 @@ func personagemExecutarAcao(ev EventoTeclado, jogo *Jogo) bool {
 		personagemMover(ev.Tecla, jogo)
 		// Envia estado atualizado do jogador
 		jogoEnviarEstadoJogador(jogo)
+
+		// Ocasionalmente enviar alerta para o monstro (simula fazer barulho)
+		// 20% de chance de fazer barulho ao se mover
+		if rand.Float32() < 0.2 {
+			jogoEnviarAlerta(jogo, "noise")
+		}
 	}
 	return true // Continua o jogo
 }

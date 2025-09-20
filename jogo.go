@@ -74,6 +74,7 @@ func jogoCarregarMapa(nome string, jogo *Jogo) error {
 						current_position: Position{X: x, Y: y},
 						state:            Patrolling,
 						destiny_position: Position{X: x + 5, Y: y + 5},
+						id:               "monster_1",
 					}
 				}
 			case Vegetacao.simbolo:
@@ -140,18 +141,45 @@ func jogoTratarEvento(jogo *Jogo, event GameEvent) {
 	switch event.Type {
 	case "monster_move":
 		// Monstro quer se mover
-		if data, ok := event.Data.(struct {
-			OldX, OldY, NewX, NewY int
-		}); ok {
+		if data, ok := event.Data.(MonsterMoveData); ok {
 			// Verificar se o movimento é válido
 			if jogoPodeMoverPara(jogo, data.NewX, data.NewY) {
 				// Atualizar posição do monstro
-				jogo.Monstro.current_position = Position{X: data.NewX, Y: data.NewY}
+				if jogo.Monstro != nil && jogo.Monstro.id == data.MonsterID {
+					jogo.Monstro.current_position = Position{X: data.NewX, Y: data.NewY}
+
+					// Verificar colisão com jogador
+					if data.NewX == jogo.PosX && data.NewY == jogo.PosY {
+						// Enviar evento de colisão de volta
+						collisionEvent := GameEvent{
+							Type: "monster_collision",
+							Data: map[string]interface{}{
+								"x":    data.NewX,
+								"y":    data.NewY,
+								"type": "movement",
+							},
+						}
+						select {
+						case jogo.GameEvents <- collisionEvent:
+						default:
+							// Canal cheio
+						}
+					}
+				}
 			}
 		}
 	case "monster_collision":
 		// Monstro colidiu com jogador
 		jogo.StatusMsg = "GAME OVER! Você foi pego pelo monstro!"
+	case "monster_timeout":
+		// Monstro entrou em timeout - mostrar mensagem
+		if data, ok := event.Data.(map[string]interface{}); ok {
+			if message, hasMsg := data["message"]; hasMsg {
+				if msgStr, isString := message.(string); isString {
+					jogo.StatusMsg = "Alerta: " + msgStr
+				}
+			}
+		}
 	}
 }
 
@@ -160,6 +188,24 @@ func jogoEnviarEstadoJogador(jogo *Jogo) {
 	select {
 	case jogo.PlayerState <- PlayerState{X: jogo.PosX, Y: jogo.PosY}:
 		// Estado enviado com sucesso
+	default:
+		// Canal cheio, pular este envio
+	}
+}
+
+// Envia alerta para o monstro
+func jogoEnviarAlerta(jogo *Jogo, tipoAlerta string) {
+	alert := PlayerAlert{
+		Type: tipoAlerta,
+		Data: map[string]int{
+			"x": jogo.PosX,
+			"y": jogo.PosY,
+		},
+	}
+
+	select {
+	case jogo.PlayerAlerts <- alert:
+		// Alerta enviado com sucesso
 	default:
 		// Canal cheio, pular este envio
 	}
