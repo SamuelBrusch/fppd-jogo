@@ -21,7 +21,6 @@ type Monster struct {
 	destiny_position Position     // Posição de destino (patrulha)
 	last_seen        Position     // Última posição vista do jogador
 	state            MonsterState // Estado atual (hunting/patrolling)
-	// Adicionar outros campos conforme necessário
 }
 
 type StarBonus struct {

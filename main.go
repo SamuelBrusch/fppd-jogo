@@ -4,7 +4,6 @@ package main
 import (
 	"context"
 	"os"
-	"time"
 )
 
 func main() {
@@ -28,44 +27,25 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Criar canais de comunicação
-	playerStateChannel := make(chan PlayerState, 10)
-	monsterEventChannel := make(chan GameEvent, 10)
-	alertChannel := make(chan PlayerAlert, 10)
-
-	// Criar e inicializar monstro
-	monster := &Monster{
-		current_position: Position{X: 50, Y: 18}, // Posição inicial do monstro
-		state:            Patrolling,
-		shift_count:      0,
+	// Iniciar goroutine do monstro se ele existir
+	if jogo.Monstro != nil {
+		go jogo.Monstro.Run(ctx, jogo.GameEvents, jogo.PlayerAlerts, jogo.PlayerState)
 	}
-	monster.generateRandomDestiny()
-
-	// Iniciar goroutine do monstro
-	go monster.Run(ctx, monsterEventChannel, alertChannel, playerStateChannel)
 
 	// Desenha o estado inicial do jogo
 	interfaceDesenharJogo(&jogo)
 
-	// Loop principal com comunicação concorrente
+	// Loop principal de entrada
 	for {
-		select {
-		case evento := <-interfaceLerEventoTecladoAsync():
-			// Processar entrada do jogador
-			if continuar := personagemExecutarAcaoComCanal(evento, &jogo, playerStateChannel); !continuar {
-				cancel() // Cancelar todas as goroutines
-				return
-			}
-			interfaceDesenharJogo(&jogo)
-
-		case monsterEvent := <-monsterEventChannel:
-			// Processar eventos do monstro
-			processarEventoMonstro(monsterEvent, &jogo)
-			interfaceDesenharJogo(&jogo)
-
-		case <-time.After(50 * time.Millisecond):
-			// Timeout para manter o jogo responsivo
-			continue
+		evento := interfaceLerEventoTeclado()
+		if continuar := personagemExecutarAcao(evento, &jogo); !continuar {
+			cancel() // Cancelar goroutine do monstro
+			break
 		}
+
+		// Processar eventos do monstro
+		jogoProcessarEventos(&jogo)
+
+		interfaceDesenharJogo(&jogo)
 	}
 }

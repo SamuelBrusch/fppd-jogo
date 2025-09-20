@@ -20,7 +20,11 @@ type Jogo struct {
 	PosX, PosY     int          // posição atual do personagem
 	UltimoVisitado Elemento     // elemento que estava na posição do personagem antes de mover
 	StatusMsg      string       // mensagem para a barra de status
-	MonsterPos     Position     // posição atual do monstro
+	Monstro        *Monster     // instância do monstro
+	// Canais de comunicação
+	GameEvents   chan GameEvent   // canal para eventos do jogo
+	PlayerState  chan PlayerState // canal para estado do jogador
+	PlayerAlerts chan PlayerAlert // canal para alertas do jogador
 }
 
 // Elementos visuais do jogo
@@ -36,7 +40,12 @@ var (
 func jogoNovo() Jogo {
 	// O ultimo elemento visitado é inicializado como vazio
 	// pois o jogo começa com o personagem em uma posição vazia
-	return Jogo{UltimoVisitado: Vazio}
+	return Jogo{
+		UltimoVisitado: Vazio,
+		GameEvents:     make(chan GameEvent, 10),
+		PlayerState:    make(chan PlayerState, 10),
+		PlayerAlerts:   make(chan PlayerAlert, 10),
+	}
 }
 
 // Lê um arquivo texto linha por linha e constrói o mapa do jogo
@@ -58,7 +67,15 @@ func jogoCarregarMapa(nome string, jogo *Jogo) error {
 			case Parede.simbolo:
 				e = Parede
 			case Inimigo.simbolo:
-				e = Inimigo
+				e = Vazio // Não desenhar o inimigo no mapa, será desenhado separadamente
+				// Inicializar monstro se ainda não foi criado
+				if jogo.Monstro == nil {
+					jogo.Monstro = &Monster{
+						current_position: Position{X: x, Y: y},
+						state:            Patrolling,
+						destiny_position: Position{X: x + 5, Y: y + 5},
+					}
+				}
 			case Vegetacao.simbolo:
 				e = Vegetacao
 			case Personagem.simbolo:
@@ -108,26 +125,42 @@ func jogoMoverElemento(jogo *Jogo, x, y, dx, dy int) {
 	jogo.Mapa[ny][nx] = elemento            // move o elemento
 }
 
-// Processa eventos enviados pelo monstro
-func processarEventoMonstro(event GameEvent, jogo *Jogo) {
-	switch event.Type {
-	case "monster_moved":
-		// Atualizar posição do monstro no mapa
-		if data, ok := event.Data.(map[string]int); ok {
-			x, hasX := data["x"]
-			y, hasY := data["y"]
+// Processa eventos vindos do monstro
+func jogoProcessarEventos(jogo *Jogo) {
+	select {
+	case event := <-jogo.GameEvents:
+		jogoTratarEvento(jogo, event)
+	default:
+		// Não há eventos para processar
+	}
+}
 
-			if hasX && hasY {
-				// Verificar se a posição está dentro dos limites do mapa
-				if y >= 0 && y < len(jogo.Mapa) && x >= 0 && x < len(jogo.Mapa[y]) {
-					// Atualizar posição do monstro
-					jogo.MonsterPos = Position{X: x, Y: y}
-					jogo.StatusMsg = "Monstro se moveu!"
-				}
+// Trata um evento específico do jogo
+func jogoTratarEvento(jogo *Jogo, event GameEvent) {
+	switch event.Type {
+	case "monster_move":
+		// Monstro quer se mover
+		if data, ok := event.Data.(struct {
+			OldX, OldY, NewX, NewY int
+		}); ok {
+			// Verificar se o movimento é válido
+			if jogoPodeMoverPara(jogo, data.NewX, data.NewY) {
+				// Atualizar posição do monstro
+				jogo.Monstro.current_position = Position{X: data.NewX, Y: data.NewY}
 			}
 		}
-	case "player_caught":
-		// Jogador foi pego pelo monstro
+	case "monster_collision":
+		// Monstro colidiu com jogador
 		jogo.StatusMsg = "GAME OVER! Você foi pego pelo monstro!"
+	}
+}
+
+// Envia estado atual do jogador para o monstro
+func jogoEnviarEstadoJogador(jogo *Jogo) {
+	select {
+	case jogo.PlayerState <- PlayerState{X: jogo.PosX, Y: jogo.PosY}:
+		// Estado enviado com sucesso
+	default:
+		// Canal cheio, pular este envio
 	}
 }

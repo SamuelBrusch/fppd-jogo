@@ -23,14 +23,20 @@ Este projeto é um pequeno jogo desenvolvido em Go que roda no terminal usando a
 ## Como compilar
 
 1. Instale o Go e clone este repositório.
-2. Inicialize um novo módulo "jogo":
+2. Navegue para a pasta do projeto:
+
+```bash
+cd fppd-jogo
+```
+
+3. Inicialize um novo módulo Go e instale dependências:
 
 ```bash
 go mod init jogo
 go get -u github.com/nsf/termbox-go
 ```
 
-3. Compile o programa:
+4. Compile o programa:
 
 Linux:
 
