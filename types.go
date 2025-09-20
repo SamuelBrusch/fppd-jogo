@@ -1,9 +1,26 @@
 // types.go - Definições de tipos para elementos especiais
 package main
 
+// Posição genérica (reutilizável)
+type Position struct {
+	X, Y int
+}
+
+// Estados do monstro
+type MonsterState int
+
+const (
+	Hunting    MonsterState = iota // Perseguindo jogador
+	Patrolling                     // Patrulhando área
+)
+
 // Structs dos elementos especiais
 type Monster struct {
-	X, Y int // Posição do monster
+	current_position Position     // Posição atual do monster
+	shift_count      int          // Contador para movimento a cada 2 turnos
+	destiny_position Position     // Posição de destino (patrulha)
+	last_seen        Position     // Última posição vista do jogador
+	state            MonsterState // Estado atual (hunting/patrolling)
 	// Adicionar outros campos conforme necessário
 }
 
