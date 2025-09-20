@@ -1,7 +1,11 @@
 // main.go - Loop principal do jogo
 package main
 
-import "os"
+import (
+	"context"
+	"os"
+	"time"
+)
 
 func main() {
 	// Inicializa a interface (termbox)
@@ -20,15 +24,48 @@ func main() {
 		panic(err)
 	}
 
+	// Criar contexto para controle das goroutines
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Criar canais de comunicação
+	playerStateChannel := make(chan PlayerState, 10)
+	monsterEventChannel := make(chan GameEvent, 10)
+	alertChannel := make(chan PlayerAlert, 10)
+
+	// Criar e inicializar monstro
+	monster := &Monster{
+		current_position: Position{X: 50, Y: 18}, // Posição inicial do monstro
+		state:            Patrolling,
+		shift_count:      0,
+	}
+	monster.generateRandomDestiny()
+
+	// Iniciar goroutine do monstro
+	go monster.Run(ctx, monsterEventChannel, alertChannel, playerStateChannel)
+
 	// Desenha o estado inicial do jogo
 	interfaceDesenharJogo(&jogo)
 
-	// Loop principal de entrada
+	// Loop principal com comunicação concorrente
 	for {
-		evento := interfaceLerEventoTeclado()
-		if continuar := personagemExecutarAcao(evento, &jogo); !continuar {
-			break
+		select {
+		case evento := <-interfaceLerEventoTecladoAsync():
+			// Processar entrada do jogador
+			if continuar := personagemExecutarAcaoComCanal(evento, &jogo, playerStateChannel); !continuar {
+				cancel() // Cancelar todas as goroutines
+				return
+			}
+			interfaceDesenharJogo(&jogo)
+
+		case monsterEvent := <-monsterEventChannel:
+			// Processar eventos do monstro
+			processarEventoMonstro(monsterEvent, &jogo)
+			interfaceDesenharJogo(&jogo)
+
+		case <-time.After(50 * time.Millisecond):
+			// Timeout para manter o jogo responsivo
+			continue
 		}
-		interfaceDesenharJogo(&jogo)
 	}
 }

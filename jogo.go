@@ -8,18 +8,19 @@ import (
 
 // Elemento representa qualquer objeto do mapa (parede, personagem, vegetação, etc)
 type Elemento struct {
-	simbolo   rune
-	cor       Cor
-	corFundo  Cor
-	tangivel  bool // Indica se o elemento bloqueia passagem
+	simbolo  rune
+	cor      Cor
+	corFundo Cor
+	tangivel bool // Indica se o elemento bloqueia passagem
 }
 
 // Jogo contém o estado atual do jogo
 type Jogo struct {
-	Mapa            [][]Elemento // grade 2D representando o mapa
-	PosX, PosY      int          // posição atual do personagem
-	UltimoVisitado  Elemento     // elemento que estava na posição do personagem antes de mover
-	StatusMsg       string       // mensagem para a barra de status
+	Mapa           [][]Elemento // grade 2D representando o mapa
+	PosX, PosY     int          // posição atual do personagem
+	UltimoVisitado Elemento     // elemento que estava na posição do personagem antes de mover
+	StatusMsg      string       // mensagem para a barra de status
+	MonsterPos     Position     // posição atual do monstro
 }
 
 // Elementos visuais do jogo
@@ -102,7 +103,31 @@ func jogoMoverElemento(jogo *Jogo, x, y, dx, dy int) {
 	// Obtem elemento atual na posição
 	elemento := jogo.Mapa[y][x] // guarda o conteúdo atual da posição
 
-	jogo.Mapa[y][x] = jogo.UltimoVisitado     // restaura o conteúdo anterior
-	jogo.UltimoVisitado = jogo.Mapa[ny][nx]   // guarda o conteúdo atual da nova posição
-	jogo.Mapa[ny][nx] = elemento              // move o elemento
+	jogo.Mapa[y][x] = jogo.UltimoVisitado   // restaura o conteúdo anterior
+	jogo.UltimoVisitado = jogo.Mapa[ny][nx] // guarda o conteúdo atual da nova posição
+	jogo.Mapa[ny][nx] = elemento            // move o elemento
+}
+
+// Processa eventos enviados pelo monstro
+func processarEventoMonstro(event GameEvent, jogo *Jogo) {
+	switch event.Type {
+	case "monster_moved":
+		// Atualizar posição do monstro no mapa
+		if data, ok := event.Data.(map[string]int); ok {
+			x, hasX := data["x"]
+			y, hasY := data["y"]
+
+			if hasX && hasY {
+				// Verificar se a posição está dentro dos limites do mapa
+				if y >= 0 && y < len(jogo.Mapa) && x >= 0 && x < len(jogo.Mapa[y]) {
+					// Atualizar posição do monstro
+					jogo.MonsterPos = Position{X: x, Y: y}
+					jogo.StatusMsg = "Monstro se moveu!"
+				}
+			}
+		}
+	case "player_caught":
+		// Jogador foi pego pelo monstro
+		jogo.StatusMsg = "GAME OVER! Você foi pego pelo monstro!"
+	}
 }

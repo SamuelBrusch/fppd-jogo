@@ -7,10 +7,14 @@ import "fmt"
 func personagemMover(tecla rune, jogo *Jogo) {
 	dx, dy := 0, 0
 	switch tecla {
-	case 'w': dy = -1 // Move para cima
-	case 'a': dx = -1 // Move para a esquerda
-	case 's': dy = 1  // Move para baixo
-	case 'd': dx = 1  // Move para a direita
+	case 'w':
+		dy = -1 // Move para cima
+	case 'a':
+		dx = -1 // Move para a esquerda
+	case 's':
+		dy = 1 // Move para baixo
+	case 'd':
+		dx = 1 // Move para a direita
 	}
 
 	nx, ny := jogo.PosX+dx, jogo.PosY+dy
@@ -41,6 +45,35 @@ func personagemExecutarAcao(ev EventoTeclado, jogo *Jogo) bool {
 	case "mover":
 		// Move o personagem com base na tecla
 		personagemMover(ev.Tecla, jogo)
+	}
+	return true // Continua o jogo
+}
+
+// Versão com canal para comunicação concorrente
+func personagemExecutarAcaoComCanal(ev EventoTeclado, jogo *Jogo, playerChannel chan<- PlayerState) bool {
+	switch ev.Tipo {
+	case "sair":
+		// Retorna false para indicar que o jogo deve terminar
+		return false
+	case "interagir":
+		// Executa a ação de interação
+		personagemInteragir(jogo)
+	case "mover":
+		// Move o personagem com base na tecla
+		personagemMover(ev.Tecla, jogo)
+
+		// Enviar nova posição do jogador para o monstro
+		playerState := PlayerState{
+			X: jogo.PosX,
+			Y: jogo.PosY,
+		}
+
+		select {
+		case playerChannel <- playerState:
+			// Posição enviada com sucesso
+		default:
+			// Canal cheio, pular este envio
+		}
 	}
 	return true // Continua o jogo
 }

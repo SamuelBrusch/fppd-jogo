@@ -14,13 +14,13 @@ type Cor = termbox.Attribute
 
 // Definições de cores utilizadas no jogo
 const (
-	CorPadrao     Cor = termbox.ColorDefault
-	CorCinzaEscuro    = termbox.ColorDarkGray
-	CorVermelho       = termbox.ColorRed
-	CorVerde          = termbox.ColorGreen
-	CorParede         = termbox.ColorBlack | termbox.AttrBold | termbox.AttrDim
-	CorFundoParede    = termbox.ColorDarkGray
-	CorTexto          = termbox.ColorDarkGray
+	CorPadrao      Cor = termbox.ColorDefault
+	CorCinzaEscuro     = termbox.ColorDarkGray
+	CorVermelho        = termbox.ColorRed
+	CorVerde           = termbox.ColorGreen
+	CorParede          = termbox.ColorBlack | termbox.AttrBold | termbox.AttrDim
+	CorFundoParede     = termbox.ColorDarkGray
+	CorTexto           = termbox.ColorDarkGray
 )
 
 // EventoTeclado representa uma ação detectada do teclado (como mover, sair ou interagir)
@@ -70,6 +70,9 @@ func interfaceDesenharJogo(jogo *Jogo) {
 	// Desenha o personagem sobre o mapa
 	interfaceDesenharElemento(jogo.PosX, jogo.PosY, Personagem)
 
+	// Desenha o monstro sobre o mapa
+	interfaceDesenharElemento(jogo.MonsterPos.X, jogo.MonsterPos.Y, Inimigo)
+
 	// Desenha a barra de status
 	interfaceDesenharBarraDeStatus(jogo)
 
@@ -106,3 +109,34 @@ func interfaceDesenharBarraDeStatus(jogo *Jogo) {
 	}
 }
 
+// Versão assíncrona de leitura de eventos do teclado (não-bloqueante)
+func interfaceLerEventoTecladoAsync() <-chan EventoTeclado {
+	ch := make(chan EventoTeclado, 1)
+	go func() {
+		defer close(ch)
+		for {
+			switch ev := termbox.PollEvent(); ev.Type {
+			case termbox.EventKey:
+				evento := EventoTeclado{}
+				switch ev.Key {
+				case termbox.KeyEsc:
+					evento.Tipo = "sair"
+					ch <- evento
+					return
+				default:
+					switch ev.Ch {
+					case 'e', 'E':
+						evento.Tipo = "interagir"
+					case 'w', 'W', 'a', 'A', 's', 'S', 'd', 'D':
+						evento.Tipo = "mover"
+						evento.Tecla = ev.Ch
+					default:
+						continue // Ignorar outras teclas
+					}
+				}
+				ch <- evento
+			}
+		}
+	}()
+	return ch
+}
