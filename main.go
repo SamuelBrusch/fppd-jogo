@@ -1,7 +1,10 @@
 // main.go - Loop principal do jogo
 package main
 
-import "os"
+import (
+	"context"
+	"os"
+)
 
 func main() {
 	// Inicializa a interface (termbox)
@@ -20,6 +23,15 @@ func main() {
 		panic(err)
 	}
 
+	// Criar contexto para controle das goroutines
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Iniciar goroutine do monstro se ele existir
+	if jogo.Monstro != nil {
+		go jogo.Monstro.Run(ctx, jogo.GameEvents, jogo.PlayerAlerts, jogo.PlayerState)
+	}
+
 	// Desenha o estado inicial do jogo
 	interfaceDesenharJogo(&jogo)
 
@@ -27,8 +39,13 @@ func main() {
 	for {
 		evento := interfaceLerEventoTeclado()
 		if continuar := personagemExecutarAcao(evento, &jogo); !continuar {
+			cancel() // Cancelar goroutine do monstro
 			break
 		}
+
+		// Processar eventos do monstro
+		jogoProcessarEventos(&jogo)
+
 		interfaceDesenharJogo(&jogo)
 	}
 }
