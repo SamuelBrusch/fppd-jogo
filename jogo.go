@@ -28,20 +28,20 @@ type Jogo struct {
 	GameEvents   chan GameEvent   // canal para eventos do jogo
 	PlayerState  chan PlayerState // canal para estado do jogador
 	PlayerAlerts chan PlayerAlert // canal para alertas do jogador
-	StarEvents chan GameEvent   
-  Collected  chan PlayerCollect   // novo canal para avisar coleta
+	StarEvents   chan GameEvent
+	Collected    chan PlayerCollect // novo canal para avisar coleta
 }
 
 // Elementos visuais do jogo
 var (
-	Personagem = Elemento{'☺', CorCinzaEscuro, CorPadrao, true}
-	Inimigo    = Elemento{'☠', CorVermelho, CorPadrao, true}
-	Parede     = Elemento{'▤', CorParede, CorFundoParede, true}
-	Vegetacao  = Elemento{'♣', CorVerde, CorPadrao, false}
-	Vazio      = Elemento{' ', CorPadrao, CorPadrao, false}
-  InvisibilityItem    = Elemento{'¤', CorAmarelo, CorPadrao, false}
+	Personagem          = Elemento{'☺', CorCinzaEscuro, CorPadrao, true}
+	Inimigo             = Elemento{'☠', CorVermelho, CorPadrao, true}
+	Parede              = Elemento{'▤', CorParede, CorFundoParede, true}
+	Vegetacao           = Elemento{'♣', CorVerde, CorPadrao, false}
+	Vazio               = Elemento{' ', CorPadrao, CorPadrao, false}
+	InvisibilityItem    = Elemento{'¤', CorAmarelo, CorPadrao, false}
 	PersonagemInvisivel = Elemento{'☺', CorTexto, CorPadrao, true}
-	Estrela	= Elemento{'*', CorAmarelo, CorPadrao, false}
+	Estrela             = Elemento{'*', CorAmarelo, CorPadrao, false}
 )
 
 // Cria e retorna uma nova instância do jogo
@@ -53,7 +53,7 @@ func jogoNovo() Jogo {
 		GameEvents:     make(chan GameEvent, 10),
 		PlayerState:    make(chan PlayerState, 10),
 		PlayerAlerts:   make(chan PlayerAlert, 10),
-		PlayerCollects: make(chan PlayerCollect, 10),
+		Collected:      make(chan PlayerCollect, 10),
 	}
 }
 
@@ -98,7 +98,9 @@ func jogoCarregarMapa(nome string, jogo *Jogo) error {
 				jogo.InvisibilityItems = append(jogo.InvisibilityItems, invisItem)
 			case Personagem.simbolo:
 				jogo.PosX, jogo.PosY = x, y // registra a posição inicial do personagem
-			
+				jogo.UltimoVisitado = Vazio // inicializa o elemento que estava sob o personagem
+				e = Vazio                   // a posição do personagem fica vazia no mapa
+
 			case Estrela.simbolo:
 				e = Estrela
 			}
