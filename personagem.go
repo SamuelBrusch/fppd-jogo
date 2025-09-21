@@ -26,9 +26,27 @@ func personagemMover(tecla rune, jogo *Jogo) {
 		jogoMoverElemento(jogo, jogo.PosX, jogo.PosY, dx, dy)
 		jogo.PosX, jogo.PosY = nx, ny
 
-		active := verificaEncontroItemInvisibilidade(jogo)
+		// DETECÇÃO DIRETA: Verificar se coletou item de invisibilidade
+		coletouInvisibilidade := ConsumirItemInvisibilidade(jogo)
+		if coletouInvisibilidade {
+			jogo.InvisibleSteps = InvisibilityDuration
+			jogo.StatusMsg = "Invisibilidade coletada!"
+		}
 
-		if !active && jogo.InvisibleSteps > 0{
+		// CANAIS: Enviar evento de coleta para os itens de invisibilidade (para concorrência)
+		collectEvent := PlayerCollect{
+			X: jogo.PosX,
+			Y: jogo.PosY,
+		}
+		select {
+		case jogo.PlayerCollects <- collectEvent:
+			// Evento de coleta enviado com sucesso
+		default:
+			// Canal cheio, pular este envio
+		}
+
+		// Atualizar contador de invisibilidade (apenas se não coletou neste turno)
+		if !coletouInvisibilidade && jogo.InvisibleSteps > 0 {
 			jogo.InvisibleSteps--
 			if jogo.InvisibleSteps == 0 {
 				jogo.StatusMsg = "Invisibilidade expirou"
@@ -37,16 +55,6 @@ func personagemMover(tecla rune, jogo *Jogo) {
 			}
 		}
 	}
-}
-
-func verificaEncontroItemInvisibilidade(jogo *Jogo) bool {
-    // Se o elemento sob o jogador (destino anterior) é o item, imprime a mensagem
-    if ConsumirItemInvisibilidade(jogo){
-		jogo.StatusMsg = "Invisibilidade coletada!"
-		jogo.InvisibleSteps = InvisibilityDuration
-		return true
-    }
-	return false
 }
 
 // Define o que ocorre quando o jogador pressiona a tecla de interação

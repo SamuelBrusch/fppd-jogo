@@ -32,6 +32,11 @@ func main() {
 		go jogo.Monstro.Run(ctx, jogo.GameEvents, jogo.PlayerAlerts, jogo.PlayerState)
 	}
 
+	// Iniciar goroutines dos itens de invisibilidade
+	for _, invisItem := range jogo.InvisibilityItems {
+		go invisItem.Run(ctx, jogo.GameEvents, jogo.PlayerCollects)
+	}
+
 	// Desenha o estado inicial do jogo
 	interfaceDesenharJogo(&jogo)
 
