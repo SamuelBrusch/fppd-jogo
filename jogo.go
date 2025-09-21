@@ -24,11 +24,13 @@ type Jogo struct {
 
 // Elementos visuais do jogo
 var (
-	Personagem = Elemento{'☺', CorCinzaEscuro, CorPadrao, true}
-	Inimigo    = Elemento{'☠', CorVermelho, CorPadrao, true}
-	Parede     = Elemento{'▤', CorParede, CorFundoParede, true}
-	Vegetacao  = Elemento{'♣', CorVerde, CorPadrao, false}
-	Vazio      = Elemento{' ', CorPadrao, CorPadrao, false}
+	Personagem 			= Elemento{'☺', CorCinzaEscuro, CorPadrao, true}
+	Inimigo    			= Elemento{'☠', CorVermelho, CorPadrao, true}
+	Parede     			= Elemento{'▤', CorParede, CorFundoParede, true}
+	Vegetacao  			= Elemento{'♣', CorVerde, CorPadrao, false}
+	Vazio      			= Elemento{' ', CorPadrao, CorPadrao, false}
+	InvisibilityItem	= Elemento{'¤', CorAmarelo, CorPadrao, false}
+	PersonagemInvisivel = Elemento{'☺', CorTexto, CorPadrao, true}
 )
 
 // Cria e retorna uma nova instância do jogo
@@ -60,6 +62,8 @@ func jogoCarregarMapa(nome string, jogo *Jogo) error {
 				e = Inimigo
 			case Vegetacao.simbolo:
 				e = Vegetacao
+			case InvisibilityItem.simbolo:
+				e = InvisibilityItem
 			case Personagem.simbolo:
 				jogo.PosX, jogo.PosY = x, y // registra a posição inicial do personagem
 			}
