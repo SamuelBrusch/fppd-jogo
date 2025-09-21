@@ -71,6 +71,11 @@ func interfaceDesenharJogo(jogo *Jogo) {
 	// Desenha o personagem sobre o mapa
 	interfaceDesenharElemento(jogo.PosX, jogo.PosY, jogo.elementoJogador())
 
+	// Desenha o monstro se existir
+	if jogo.Monstro != nil {
+		interfaceDesenharElemento(jogo.Monstro.current_position.X, jogo.Monstro.current_position.Y, Inimigo)
+	}
+
 	// Desenha a barra de status
 	interfaceDesenharBarraDeStatus(jogo)
 
@@ -107,3 +112,34 @@ func interfaceDesenharBarraDeStatus(jogo *Jogo) {
 	}
 }
 
+// Versão assíncrona de leitura de eventos do teclado (não-bloqueante)
+func interfaceLerEventoTecladoAsync() <-chan EventoTeclado {
+	ch := make(chan EventoTeclado, 1)
+	go func() {
+		defer close(ch)
+		for {
+			switch ev := termbox.PollEvent(); ev.Type {
+			case termbox.EventKey:
+				evento := EventoTeclado{}
+				switch ev.Key {
+				case termbox.KeyEsc:
+					evento.Tipo = "sair"
+					ch <- evento
+					return
+				default:
+					switch ev.Ch {
+					case 'e', 'E':
+						evento.Tipo = "interagir"
+					case 'w', 'W', 'a', 'A', 's', 'S', 'd', 'D':
+						evento.Tipo = "mover"
+						evento.Tecla = ev.Ch
+					default:
+						continue // Ignorar outras teclas
+					}
+				}
+				ch <- evento
+			}
+		}
+	}()
+	return ch
+}

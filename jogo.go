@@ -20,8 +20,12 @@ type Jogo struct {
 	PosX, PosY     int          // posição atual do personagem
 	UltimoVisitado Elemento     // elemento que estava na posição do personagem antes de mover
 	StatusMsg      string       // mensagem para a barra de status
-
 	InvisibleSteps int // contador de invisibilidade do personagem (em passos)
+	Monstro        *Monster     // instância do monstro
+	// Canais de comunicação
+	GameEvents   chan GameEvent   // canal para eventos do jogo
+	PlayerState  chan PlayerState // canal para estado do jogador
+	PlayerAlerts chan PlayerAlert // canal para alertas do jogador
 }
 
 // Elementos visuais do jogo
@@ -39,7 +43,12 @@ var (
 func jogoNovo() Jogo {
 	// O ultimo elemento visitado é inicializado como vazio
 	// pois o jogo começa com o personagem em uma posição vazia
-	return Jogo{UltimoVisitado: Vazio}
+	return Jogo{
+		UltimoVisitado: Vazio,
+		GameEvents:     make(chan GameEvent, 10),
+		PlayerState:    make(chan PlayerState, 10),
+		PlayerAlerts:   make(chan PlayerAlert, 10),
+	}
 }
 
 // Lê um arquivo texto linha por linha e constrói o mapa do jogo
@@ -61,7 +70,16 @@ func jogoCarregarMapa(nome string, jogo *Jogo) error {
 			case Parede.simbolo:
 				e = Parede
 			case Inimigo.simbolo:
-				e = Inimigo
+				e = Vazio // Não desenhar o inimigo no mapa, será desenhado separadamente
+				// Inicializar monstro se ainda não foi criado
+				if jogo.Monstro == nil {
+					jogo.Monstro = &Monster{
+						current_position: Position{X: x, Y: y},
+						state:            Patrolling,
+						destiny_position: Position{X: x + 5, Y: y + 5},
+						id:               "monster_1",
+					}
+				}
 			case Vegetacao.simbolo:
 				e = Vegetacao
 			case InvisibilityItem.simbolo:
@@ -119,4 +137,88 @@ func (j *Jogo) elementoJogador() Elemento {
 		return PersonagemInvisivel
 	}
 	return Personagem
+
+// Processa eventos vindos do monstro
+func jogoProcessarEventos(jogo *Jogo) {
+	select {
+	case event := <-jogo.GameEvents:
+		jogoTratarEvento(jogo, event)
+	default:
+		// Não há eventos para processar
+	}
+}
+
+// Trata um evento específico do jogo
+func jogoTratarEvento(jogo *Jogo, event GameEvent) {
+	switch event.Type {
+	case "monster_move":
+		// Monstro quer se mover
+		if data, ok := event.Data.(MonsterMoveData); ok {
+			// Verificar se o movimento é válido
+			if jogoPodeMoverPara(jogo, data.NewX, data.NewY) {
+				// Atualizar posição do monstro
+				if jogo.Monstro != nil && jogo.Monstro.id == data.MonsterID {
+					jogo.Monstro.current_position = Position{X: data.NewX, Y: data.NewY}
+
+					// Verificar colisão com jogador
+					if data.NewX == jogo.PosX && data.NewY == jogo.PosY {
+						// Enviar evento de colisão de volta
+						collisionEvent := GameEvent{
+							Type: "monster_collision",
+							Data: map[string]interface{}{
+								"x":    data.NewX,
+								"y":    data.NewY,
+								"type": "movement",
+							},
+						}
+						select {
+						case jogo.GameEvents <- collisionEvent:
+						default:
+							// Canal cheio
+						}
+					}
+				}
+			}
+		}
+	case "monster_collision":
+		// Monstro colidiu com jogador
+		jogo.StatusMsg = "GAME OVER! Você foi pego pelo monstro!"
+	case "monster_timeout":
+		// Monstro entrou em timeout - mostrar mensagem
+		if data, ok := event.Data.(map[string]interface{}); ok {
+			if message, hasMsg := data["message"]; hasMsg {
+				if msgStr, isString := message.(string); isString {
+					jogo.StatusMsg = "Alerta: " + msgStr
+				}
+			}
+		}
+	}
+}
+
+// Envia estado atual do jogador para o monstro
+func jogoEnviarEstadoJogador(jogo *Jogo) {
+	select {
+	case jogo.PlayerState <- PlayerState{X: jogo.PosX, Y: jogo.PosY}:
+		// Estado enviado com sucesso
+	default:
+		// Canal cheio, pular este envio
+	}
+}
+
+// Envia alerta para o monstro
+func jogoEnviarAlerta(jogo *Jogo, tipoAlerta string) {
+	alert := PlayerAlert{
+		Type: tipoAlerta,
+		Data: map[string]int{
+			"x": jogo.PosX,
+			"y": jogo.PosY,
+		},
+	}
+
+	select {
+	case jogo.PlayerAlerts <- alert:
+		// Alerta enviado com sucesso
+	default:
+		// Canal cheio, pular este envio
+	}
 }

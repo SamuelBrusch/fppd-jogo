@@ -8,6 +8,7 @@ jogo.exe
 go.sum
 go.mod
 
+
 # Arquivos temporários
 *.tmp
 *.log
