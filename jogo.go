@@ -20,13 +20,16 @@ type Jogo struct {
 	PosX, PosY     int          // posição atual do personagem
 	UltimoVisitado Elemento     // elemento que estava na posição do personagem antes de mover
 	StatusMsg      string       // mensagem para a barra de status
+	InvisibleSteps int          // contador de invisibilidade do personagem (em passos)
 	Monstro        *Monster     // instância do monstro
+	// Itens de invisibilidade no mapa
+	InvisibilityItems []*Invisibility // lista de itens de invisibilidade
 	// Canais de comunicação
 	GameEvents   chan GameEvent   // canal para eventos do jogo
 	PlayerState  chan PlayerState // canal para estado do jogador
 	PlayerAlerts chan PlayerAlert // canal para alertas do jogador
-	StarEvents chan GameEvent       // novo canal para eventos de estrela
-    Collected  chan PlayerCollect   // novo canal para avisar coleta
+	StarEvents chan GameEvent   
+  Collected  chan PlayerCollect   // novo canal para avisar coleta
 }
 
 // Elementos visuais do jogo
@@ -36,6 +39,8 @@ var (
 	Parede     = Elemento{'▤', CorParede, CorFundoParede, true}
 	Vegetacao  = Elemento{'♣', CorVerde, CorPadrao, false}
 	Vazio      = Elemento{' ', CorPadrao, CorPadrao, false}
+  InvisibilityItem    = Elemento{'¤', CorAmarelo, CorPadrao, false}
+	PersonagemInvisivel = Elemento{'☺', CorTexto, CorPadrao, true}
 	Estrela	= Elemento{'*', CorAmarelo, CorPadrao, false}
 )
 
@@ -48,6 +53,7 @@ func jogoNovo() Jogo {
 		GameEvents:     make(chan GameEvent, 10),
 		PlayerState:    make(chan PlayerState, 10),
 		PlayerAlerts:   make(chan PlayerAlert, 10),
+		PlayerCollects: make(chan PlayerCollect, 10),
 	}
 }
 
@@ -82,6 +88,14 @@ func jogoCarregarMapa(nome string, jogo *Jogo) error {
 				}
 			case Vegetacao.simbolo:
 				e = Vegetacao
+			case InvisibilityItem.simbolo:
+				e = InvisibilityItem
+				// Criar nova instância de Invisibility para esta posição
+				invisItem := &Invisibility{
+					X: x,
+					Y: y,
+				}
+				jogo.InvisibilityItems = append(jogo.InvisibilityItems, invisItem)
 			case Personagem.simbolo:
 				jogo.PosX, jogo.PosY = x, y // registra a posição inicial do personagem
 			
@@ -130,6 +144,14 @@ func jogoMoverElemento(jogo *Jogo, x, y, dx, dy int) {
 	jogo.Mapa[y][x] = jogo.UltimoVisitado   // restaura o conteúdo anterior
 	jogo.UltimoVisitado = jogo.Mapa[ny][nx] // guarda o conteúdo atual da nova posição
 	jogo.Mapa[ny][nx] = elemento            // move o elemento
+}
+
+// Retorna o elemento visual do jogador (normal ou invisível)
+func (j *Jogo) elementoJogador() Elemento {
+	if j.InvisibleSteps > 0 {
+		return PersonagemInvisivel
+	}
+	return Personagem
 }
 
 // Processa eventos vindos do monstro
@@ -184,6 +206,24 @@ func jogoTratarEvento(jogo *Jogo, event GameEvent) {
 				if msgStr, isString := message.(string); isString {
 					jogo.StatusMsg = "Alerta: " + msgStr
 				}
+			}
+		}
+	case EventApplyInvisibility:
+		// Item de invisibilidade foi coletado
+		if data, ok := event.Data.(InvisibilityApplied); ok {
+			jogo.InvisibleSteps = data.Duration
+			jogo.StatusMsg = "Invisibilidade coletada!"
+		}
+	case EventRemoveElement:
+		// Remover item do mapa
+		if data, ok := event.Data.(Invisibility); ok {
+			// Verificar se o item está na posição do jogador e remover do UltimoVisitado
+			if data.X == jogo.PosX && data.Y == jogo.PosY {
+				jogo.UltimoVisitado = Vazio
+			} else if data.Y >= 0 && data.Y < len(jogo.Mapa) &&
+				data.X >= 0 && data.X < len(jogo.Mapa[data.Y]) {
+				// Remover do mapa se não estiver na posição do jogador
+				jogo.Mapa[data.Y][data.X] = Vazio
 			}
 		}
 	}

@@ -29,11 +29,39 @@ func personagemMover(tecla rune, jogo *Jogo, starEvents <-chan GameEvent, collec
 		jogoMoverElemento(jogo, jogo.PosX, jogo.PosY, dx, dy)
 		jogo.PosX, jogo.PosY = nx, ny
 
+
 		// Se pisou na estrela, envia para o canal collected
 		if jogo.Mapa[ny][nx].simbolo == '*' {
 			collected <- PlayerCollect{X: dx, Y: dy}
 			fmt.Println("Estrela coletada! Direção:", dx, dy)
 
+		// DETECÇÃO DIRETA: Verificar se coletou item de invisibilidade
+		coletouInvisibilidade := ConsumirItemInvisibilidade(jogo)
+		if coletouInvisibilidade {
+			jogo.InvisibleSteps = InvisibilityDuration
+			jogo.StatusMsg = "Invisibilidade coletada!"
+		}
+
+		// CANAIS: Enviar evento de coleta para os itens de invisibilidade (para concorrência)
+		collectEvent := PlayerCollect{
+			X: jogo.PosX,
+			Y: jogo.PosY,
+		}
+		select {
+		case jogo.PlayerCollects <- collectEvent:
+			// Evento de coleta enviado com sucesso
+		default:
+			// Canal cheio, pular este envio
+		}
+
+		// Atualizar contador de invisibilidade (apenas se não coletou neste turno)
+		if !coletouInvisibilidade && jogo.InvisibleSteps > 0 {
+			jogo.InvisibleSteps--
+			if jogo.InvisibleSteps == 0 {
+				jogo.StatusMsg = "Invisibilidade expirou"
+			} else {
+				jogo.StatusMsg = fmt.Sprintf("Invisível: %d movimentos restantes", jogo.InvisibleSteps)
+			}
 		}
 	}
 

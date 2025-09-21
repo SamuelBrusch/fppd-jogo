@@ -14,14 +14,14 @@ type Cor = termbox.Attribute
 
 // Definições de cores utilizadas no jogo
 const (
-	CorPadrao      Cor = termbox.ColorDefault
-	CorCinzaEscuro     = termbox.ColorDarkGray
-	CorVermelho        = termbox.ColorRed
-	CorVerde           = termbox.ColorGreen
-	CorParede          = termbox.ColorBlack | termbox.AttrBold | termbox.AttrDim
-	CorFundoParede     = termbox.ColorDarkGray
-	CorTexto           = termbox.ColorDarkGray
-	CorAmarelo         = termbox.ColorYellow
+	CorPadrao     Cor = termbox.ColorDefault
+	CorCinzaEscuro    = termbox.ColorDarkGray
+	CorVermelho       = termbox.ColorRed
+	CorVerde          = termbox.ColorGreen
+	CorParede         = termbox.ColorBlack | termbox.AttrBold | termbox.AttrDim
+	CorFundoParede    = termbox.ColorDarkGray
+	CorTexto          = termbox.ColorDarkGray
+	CorAmarelo        = termbox.ColorYellow
 )
 
 // EventoTeclado representa uma ação detectada do teclado (como mover, sair ou interagir)
@@ -69,7 +69,7 @@ func interfaceDesenharJogo(jogo *Jogo) {
 	}
 
 	// Desenha o personagem sobre o mapa
-	interfaceDesenharElemento(jogo.PosX, jogo.PosY, Personagem)
+	interfaceDesenharElemento(jogo.PosX, jogo.PosY, jogo.elementoJogador())
 
 	// Desenha o monstro se existir
 	if jogo.Monstro != nil {
