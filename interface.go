@@ -69,7 +69,7 @@ func interfaceDesenharJogo(jogo *Jogo) {
 	}
 
 	// Desenha o personagem sobre o mapa
-	interfaceDesenharElemento(jogo.PosX, jogo.PosY, Personagem)
+	interfaceDesenharElemento(jogo.PosX, jogo.PosY, jogo.elementoJogador())
 
 	// Desenha a barra de status
 	interfaceDesenharBarraDeStatus(jogo)
