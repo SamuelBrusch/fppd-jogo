@@ -6,86 +6,33 @@ import (
 	"math/rand"
 )
 
-// Estrutura para coleta do jogador (direção da coleta)
-// A definição de PlayerCollect foi movida para types.go
-
 // Atualiza a posição do personagem com base na tecla pressionada (WASD)
-func personagemMover(tecla rune, jogo *Jogo, starEvents <-chan GameEvent, collected chan<- PlayerCollect) {
+func personagemMover(tecla rune, jogo *Jogo) {
 	dx, dy := 0, 0
 	switch tecla {
 	case 'w':
-		dy = -1
+		dy = -1 // Move para cima
 	case 'a':
-		dx = -1
+		dx = -1 // Move para a esquerda
 	case 's':
-		dy = 1
+		dy = 1 // Move para baixo
 	case 'd':
-		dx = 1
+		dx = 1 // Move para a direita
 	}
 
 	nx, ny := jogo.PosX+dx, jogo.PosY+dy
-
+	// Verifica se o movimento é permitido e realiza a movimentação
 	if jogoPodeMoverPara(jogo, nx, ny) {
-		// Salva o elemento que estava na nova posição
-		jogo.UltimoVisitado = jogo.Mapa[nx][ny]
-		// Move o personagem
+		jogoMoverElemento(jogo, jogo.PosX, jogo.PosY, dx, dy)
 		jogo.PosX, jogo.PosY = nx, ny
 
-		// Se pisou na estrela, envia para o canal collected
-		if jogo.Mapa[ny][nx].simbolo == '*' {
-			collected <- PlayerCollect{X: dx, Y: dy}
-			fmt.Println("Estrela coletada! Direção:", dx, dy)
-		}
-
-		// DETECÇÃO DIRETA: Verificar se coletou item de invisibilidade
-		coletouInvisibilidade := ConsumirItemInvisibilidade(jogo)
-		if coletouInvisibilidade {
-			jogo.InvisibleSteps = InvisibilityDuration
-			jogo.StatusMsg = "Invisibilidade coletada!"
-		}
-
-		// CANAIS: Enviar evento de coleta para os itens de invisibilidade (para concorrência)
-		collectEvent := PlayerCollect{
-			X: jogo.PosX,
-			Y: jogo.PosY,
-		}
-		select {
-		case jogo.Collected <- collectEvent:
-			// Evento de coleta enviado com sucesso
-		default:
-			// Canal cheio, pular este envio
-		}
-
-		// Atualizar contador de invisibilidade (apenas se não coletou neste turno)
-		if !coletouInvisibilidade && jogo.InvisibleSteps > 0 {
-			jogo.InvisibleSteps--
-			if jogo.InvisibleSteps == 0 {
-				jogo.StatusMsg = "Invisibilidade expirou"
-			} else {
-				jogo.StatusMsg = fmt.Sprintf("Invisível: %d movimentos restantes", jogo.InvisibleSteps)
+		// Verifica se está sobre item de invisibilidade
+		if ConsumirItemInvisibilidade(jogo) {
+			// Envia evento de coleta para o canal Collected
+			if jogo.Collected != nil {
+				jogo.Collected <- PlayerCollect{X: nx, Y: ny}
 			}
 		}
-	}
-
-	// Processa eventos de estrela
-	select {
-	case ev := <-starEvents:
-		if ev.Type == "STAR_BONUS" {
-			collect := ev.Data.(PlayerCollect)
-			// Move o personagem 5 casas na direção coletada
-			for i := 0; i < 5; i++ {
-				nx, ny := jogo.PosX+collect.X, jogo.PosY+collect.Y
-				if !jogoPodeMoverPara(jogo, nx, ny) {
-					break
-				}
-				// Salva o elemento que estava na nova posição
-				jogo.UltimoVisitado = jogo.Mapa[nx][ny]
-				// Move o personagem
-				jogo.PosX, jogo.PosY = nx, ny
-			}
-		}
-	default:
-		// Nenhum evento
 	}
 }
 
@@ -108,8 +55,7 @@ func personagemExecutarAcao(ev EventoTeclado, jogo *Jogo) bool {
 		personagemInteragir(jogo)
 	case "mover":
 		// Move o personagem com base na tecla
-		// Adapte para passar o canal correto de coleta de estrela
-		personagemMover(ev.Tecla, jogo, jogo.StarEvents, jogo.Collected)
+		personagemMover(ev.Tecla, jogo)
 		// Envia estado atualizado do jogador
 		jogoEnviarEstadoJogador(jogo)
 
@@ -133,7 +79,7 @@ func personagemExecutarAcaoComCanal(ev EventoTeclado, jogo *Jogo, playerChannel 
 		personagemInteragir(jogo)
 	case "mover":
 		// Move o personagem com base na tecla
-		personagemMover(ev.Tecla, jogo, jogo.StarEvents, jogo.Collected)
+		personagemMover(ev.Tecla, jogo)
 
 		// Enviar nova posição do jogador para o monstro
 		playerState := PlayerState{
