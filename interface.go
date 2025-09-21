@@ -1,8 +1,3 @@
-// interface.go - Interface gráfica do jogo usando termbox
-// O código abaixo implementa a interface gráfica do jogo usando a biblioteca termbox-go.
-// A biblioteca termbox-go é uma biblioteca de interface de terminal que permite desenhar
-// elementos na tela, capturar eventos do teclado e gerenciar a aparência do terminal.
-
 package main
 
 import (
@@ -26,8 +21,8 @@ const (
 
 // EventoTeclado representa uma ação detectada do teclado (como mover, sair ou interagir)
 type EventoTeclado struct {
-	Tipo  string // "sair", "interagir", "mover"
-	Tecla rune   // Tecla pressionada, usada no caso de movimento
+	Tipo  string 
+	Tecla rune 
 }
 
 // Inicializa a interface gráfica usando termbox
@@ -84,31 +79,24 @@ func interfaceDesenharJogo(jogo *Jogo) {
 		}
 	}
 
-	// Desenha a barra de status
 	interfaceDesenharBarraDeStatus(jogo)
-
-	// Força a atualização do terminal
 	interfaceAtualizarTela()
 }
 
-// Limpa a tela do terminal
 func interfaceLimparTela() {
 	termbox.Clear(CorPadrao, CorPadrao)
 }
 
-// Força a atualização da tela do terminal com os dados desenhados
 func interfaceAtualizarTela() {
 	termbox.Flush()
 }
 
-// Desenha um elemento na posição (x, y)
 func interfaceDesenharElemento(x, y int, elem Elemento) {
 	termbox.SetCell(x, y, elem.simbolo, elem.cor, elem.corFundo)
 }
 
-// Exibe uma barra de status com informações úteis ao jogador
 func interfaceDesenharBarraDeStatus(jogo *Jogo) {
-	// Linha de status dinâmica
+
 	for i, c := range jogo.StatusMsg {
 		termbox.SetCell(i, len(jogo.Mapa)+1, c, CorTexto, CorPadrao)
 	}

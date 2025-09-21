@@ -1,7 +1,6 @@
 // types.go - Definições de tipos para elementos especiais
 package main
 
-// Posição genérica (reutilizável)
 type Position struct {
 	X, Y int
 }
@@ -10,8 +9,8 @@ type Position struct {
 type MonsterState int
 
 const (
-	Hunting    MonsterState = iota // Perseguindo jogador
-	Patrolling                     // Patrulhando área
+	Hunting    MonsterState = iota 
+	Patrolling                 
 )
 
 // Structs dos elementos especiais
@@ -26,43 +25,36 @@ type Monster struct {
 
 type StarBonus struct {
 	X, Y int // Posição da estrela
-	// Adicionar outros campos conforme necessário
 }
 
 type Invisibility struct {
 	X, Y int // Posição do item de invisibilidade
-	// Adicionar outros campos conforme necessário
 }
 
-// Tipos de eventos e comunicação
 type GameEvent struct {
-	Type string      // Tipo do evento
-	Data interface{} // Dados do evento
+	Type string      
+	Data interface{}
 }
 
-// Dados específicos para movimento do monster
 type MonsterMoveData struct {
-	OldX, OldY int    // Posição anterior
-	NewX, NewY int    // Nova posição desejada
-	MonsterID  string // ID do monster
+	OldX, OldY int    
+	NewX, NewY int    
+	MonsterID  string 
 }
 
 type PlayerAlert struct {
-	Type string      // Tipo do alerta
-	Data interface{} // Dados do alerta
+	Type string     
+	Data interface{} 
 }
 
 type PlayerState struct {
-	X, Y int // Posição do jogador
-	// Adicionar outros campos conforme necessário
+	X, Y int 
 }
 
 type PlayerCollect struct {
 	X, Y int // Posição onde o jogador coletou algo
-	// Adicionar outros campos conforme necessário
 }
 
-// Payload para aplicação de pulo duplo
 type DoubleJumpApplied struct {
 	Jumps int // Número de pulos duplos concedidos
 }

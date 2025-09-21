@@ -55,18 +55,15 @@ func main() {
 		}
 	}()
 
-	// Desenha o estado inicial do jogo
 	interfaceDesenharJogo(&jogo)
 
 	// Loop principal de entrada
 	for {
 		evento := interfaceLerEventoTeclado()
 		if continuar := personagemExecutarAcao(evento, &jogo); !continuar {
-			cancel() // Cancelar goroutine do monstro
+			cancel() 
 			break
 		}
-
-		// Processar eventos do monstro
 		jogoProcessarEventos(&jogo)
 
 		interfaceDesenharJogo(&jogo)

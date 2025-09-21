@@ -11,10 +11,10 @@ import (
 type StarState int
 
 const (
-	StarVisible   StarState = iota // Estrela visível e coletável
-	StarInvisible                  // Estrela invisível (não coletável)
-	StarPulsing                    // Estrela pulsando (alternando visibilidade)
-	StarCharging                   // Estrela carregando energia
+	StarVisible StarState = iota
+	StarInvisible
+	StarPulsing
+	StarCharging
 )
 
 // Tipos de eventos da estrela
@@ -38,10 +38,9 @@ const (
 	StarTimeoutDuration    = 15 * time.Second // Timeout para mudança de comportamento
 )
 
-// Dados para eventos da estrela
 type StarCollectedData struct {
 	X, Y      int
-	BonusType string // "score", "life", "power"
+	BonusType string //
 	Value     int
 }
 
@@ -78,23 +77,22 @@ type StarCommunicationData struct {
 	Data       interface{}
 }
 
-// Comando para controle da estrela
 type StarCommand struct {
-	Type   string      // "change_state", "pulse", "charge", "communicate"
-	Target string      // ID da estrela alvo
-	Data   interface{} // Dados específicos do comando
+	Type   string
+	Target string
+	Data   interface{}
 }
 
-// Estrutura da estrela (já definida em types.go, mas vamos estender)
+// Estrutura da estrela
 type Star struct {
-	X, Y          int            // Posição da estrela
-	State         StarState      // Estado atual
-	ID            string         // ID único da estrela
-	IsVisible     bool           // Se está visível no momento
-	Energy        int            // Energia acumulada
-	PulseCount    int            // Contador de pulsações
-	LastPlayerPos Position       // Última posição conhecida do jogador
-	MapAccess     chan chan bool // Canal para requisitar acesso ao mapa
+	X, Y          int
+	State         StarState
+	ID            string
+	IsVisible     bool
+	Energy        int
+	PulseCount    int
+	LastPlayerPos Position
+	MapAccess     chan chan bool
 }
 
 // Cria uma nova estrela
@@ -110,7 +108,6 @@ func NewStar(x, y int, id string) *Star {
 	}
 }
 
-// Goroutine principal da estrela - atende TODOS os requisitos de concorrência
 func (s *Star) Run(ctx context.Context, gameEvents chan<- GameEvent, playerState <-chan PlayerState,
 	playerCollects <-chan PlayerCollect, starCommands <-chan StarCommand, mapMutex chan chan bool) {
 
@@ -130,9 +127,8 @@ func (s *Star) Run(ctx context.Context, gameEvents chan<- GameEvent, playerState
 		case <-ctx.Done():
 			return
 
-		// REQUISITO: Escuta concorrente de múltiplos canais
 		case playerPos := <-playerState:
-			s.LastPlayerPos = Position{X: playerPos.X, Y: playerPos.Y}
+			s.LastPlayerPos = Position(playerPos)
 			s.handlePlayerMovement(gameEvents, playerPos)
 
 		case collect := <-playerCollects:
@@ -144,7 +140,6 @@ func (s *Star) Run(ctx context.Context, gameEvents chan<- GameEvent, playerState
 		case command := <-starCommands:
 			s.handleStarCommand(gameEvents, command)
 
-		// REQUISITO: Comunicação com timeout
 		case <-timeoutTimer.C:
 			s.handleTimeout(gameEvents)
 			timeoutTimer.Reset(StarTimeoutDuration)
@@ -172,11 +167,9 @@ func (s *Star) Run(ctx context.Context, gameEvents chan<- GameEvent, playerState
 	}
 }
 
-// Manipula movimento do jogador próximo à estrela
 func (s *Star) handlePlayerMovement(gameEvents chan<- GameEvent, playerPos PlayerState) {
 	distance := abs(playerPos.X-s.X) + abs(playerPos.Y-s.Y) // Distância Manhattan
 
-	// Se jogador está próximo (distância 1), muda comportamento
 	if distance <= 1 && s.State != StarPulsing {
 		s.changeState(StarPulsing, gameEvents)
 	} else if distance > 3 && s.State == StarPulsing {
@@ -198,7 +191,6 @@ func (s *Star) handleCollection(gameEvents chan<- GameEvent, collect PlayerColle
 		bonusType = "life"
 		value = 1
 	default:
-		// Bônus baseado na energia acumulada
 		value += s.Energy * 10
 	}
 
@@ -219,7 +211,6 @@ func (s *Star) handleCollection(gameEvents chan<- GameEvent, collect PlayerColle
 	}
 }
 
-// Manipula comandos de outras estrelas ou elementos
 func (s *Star) handleStarCommand(gameEvents chan<- GameEvent, command StarCommand) {
 	switch command.Type {
 	case "change_state":
@@ -241,7 +232,6 @@ func (s *Star) handleStarCommand(gameEvents chan<- GameEvent, command StarComman
 	}
 }
 
-// REQUISITO: Comunicação com timeout
 func (s *Star) handleTimeout(gameEvents chan<- GameEvent) {
 	// Comportamento alternativo quando não recebe interação por tempo limite
 	actions := []string{"charge", "pulse", "hide", "energy_burst"}
@@ -314,7 +304,6 @@ func (s *Star) handlePulse(gameEvents chan<- GameEvent, mapMutex chan chan bool)
 		},
 	}
 
-	// Após 10 pulsações, volta ao estado normal
 	if s.PulseCount >= 10 {
 		s.PulseCount = 0
 		s.changeState(StarVisible, gameEvents)
@@ -335,22 +324,19 @@ func (s *Star) handleChargeComplete(gameEvents chan<- GameEvent) {
 		},
 	}
 
-	// Volta ao estado visível após carregar
 	s.changeState(StarVisible, gameEvents)
 }
 
 // Manipula comunicação entre estrelas
 func (s *Star) handleCommunication(gameEvents chan<- GameEvent, data StarCommunicationData) {
-	// Processa mensagem de outra estrela
 	switch data.Message {
 	case "sync_pulse":
 		s.changeState(StarPulsing, gameEvents)
 	case "share_energy":
 		if energy, ok := data.Data.(int); ok {
-			s.Energy += energy / 2 // Recebe metade da energia
+			s.Energy += energy / 2
 		}
 	case "warning":
-		// Muda para modo defensivo
 		s.changeState(StarCharging, gameEvents)
 	}
 
@@ -365,14 +351,12 @@ func (s *Star) changeState(newState StarState, gameEvents chan<- GameEvent) {
 	oldState := s.State
 	s.State = newState
 
-	// Ajusta visibilidade baseada no estado
 	switch newState {
 	case StarVisible:
 		s.IsVisible = true
 	case StarInvisible:
 		s.IsVisible = false
 	case StarPulsing:
-		// Mantém visibilidade atual
 	case StarCharging:
 		s.IsVisible = true
 	}
@@ -389,13 +373,11 @@ func (s *Star) changeState(newState StarState, gameEvents chan<- GameEvent) {
 	}
 }
 
-// REQUISITO: Exclusão mútua usando canais
+// Exclusão mútua
 func (s *Star) requestMapAccess(mapMutex chan chan bool, responseChan chan bool) {
-	// Solicita acesso ao mapa
 	mapMutex <- responseChan
 }
 
-// Calcula próxima duração de visibilidade
 func (s *Star) getNextVisibilityDuration() time.Duration {
 	if s.IsVisible {
 		return StarVisibilityDuration
@@ -403,7 +385,6 @@ func (s *Star) getNextVisibilityDuration() time.Duration {
 	return StarInvisibleDuration
 }
 
-// Função auxiliar para valor absoluto
 func abs(x int) int {
 	if x < 0 {
 		return -x
@@ -411,12 +392,10 @@ func abs(x int) int {
 	return x
 }
 
-// Função compatível com a interface existente (StarBonus)
 func (s *StarBonus) Run(ctx context.Context, out chan<- GameEvent, collected <-chan PlayerCollect) {
 	// Converte StarBonus para Star para usar a implementação completa
 	star := NewStar(s.X, s.Y, "legacy_star")
 
-	// Criar canais necessários
 	playerState := make(chan PlayerState, 10)
 	starCommands := make(chan StarCommand, 10)
 	mapMutex := make(chan chan bool, 1)
@@ -428,11 +407,10 @@ func (s *StarBonus) Run(ctx context.Context, out chan<- GameEvent, collected <-c
 			case <-ctx.Done():
 				return
 			case responseChan := <-mapMutex:
-				responseChan <- true // Simula liberação imediata
+				responseChan <- true
 			}
 		}
 	}()
 
-	// Executar a implementação completa
 	star.Run(ctx, out, playerState, collected, starCommands, mapMutex)
 }

@@ -4,7 +4,7 @@ import "context"
 
 const InvisibilityDuration = 20
 
-// Tipos de eventos produzidos por este elemento
+// Eventos produzidos pelo elemento
 const (
 	EventApplyInvisibility = "ApplyInvisibility"
 	EventRemoveElement     = "RemoveElement"
@@ -24,18 +24,16 @@ func (i *Invisibility) Run(ctx context.Context, out chan<- GameEvent, picked <-c
 			if !ok {
 				return
 			}
-			// Ignora coletas que não são nesta posição
 			if ev.X != i.X || ev.Y != i.Y {
 				continue
 			}
 
-			// 1) Solicita remoção do item do mapa
 			out <- GameEvent{
 				Type: EventRemoveElement,
 				Data: Invisibility{X: i.X, Y: i.Y},
 			}
 
-			// 2) Aplica o buff de invisibilidade ao jogador
+			// Aplica o buff de invisibilidade ao jogador
 			out <- GameEvent{
 				Type: EventApplyInvisibility,
 				Data: InvisibilityApplied{Duration: InvisibilityDuration},
@@ -47,9 +45,8 @@ func (i *Invisibility) Run(ctx context.Context, out chan<- GameEvent, picked <-c
 	}
 }
 
-// NOVO: remove o item “sob” o jogador, substituindo-o por Vazio.
+// Remoção do item “sob” o jogador quando consumido
 func ConsumirItemInvisibilidade(jogo *Jogo) bool {
-	// Se o elemento “embaixo do jogador” for o item, consome-o
 	if jogo.UltimoVisitado.simbolo == InvisibilityItem.simbolo {
 		jogo.UltimoVisitado = Vazio
 		return true
