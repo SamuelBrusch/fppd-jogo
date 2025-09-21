@@ -26,14 +26,16 @@ func personagemMover(tecla rune, jogo *Jogo, starEvents <-chan GameEvent, collec
 	nx, ny := jogo.PosX+dx, jogo.PosY+dy
 
 	if jogoPodeMoverPara(jogo, nx, ny) {
-		jogoMoverElemento(jogo, jogo.PosX, jogo.PosY, dx, dy)
+		// Salva o elemento que estava na nova posição
+		jogo.UltimoVisitado = jogo.Mapa[nx][ny]
+		// Move o personagem
 		jogo.PosX, jogo.PosY = nx, ny
-
 
 		// Se pisou na estrela, envia para o canal collected
 		if jogo.Mapa[ny][nx].simbolo == '*' {
 			collected <- PlayerCollect{X: dx, Y: dy}
 			fmt.Println("Estrela coletada! Direção:", dx, dy)
+		}
 
 		// DETECÇÃO DIRETA: Verificar se coletou item de invisibilidade
 		coletouInvisibilidade := ConsumirItemInvisibilidade(jogo)
@@ -48,7 +50,7 @@ func personagemMover(tecla rune, jogo *Jogo, starEvents <-chan GameEvent, collec
 			Y: jogo.PosY,
 		}
 		select {
-		case jogo.PlayerCollects <- collectEvent:
+		case jogo.Collected <- collectEvent:
 			// Evento de coleta enviado com sucesso
 		default:
 			// Canal cheio, pular este envio
@@ -71,12 +73,14 @@ func personagemMover(tecla rune, jogo *Jogo, starEvents <-chan GameEvent, collec
 		if ev.Type == "STAR_BONUS" {
 			collect := ev.Data.(PlayerCollect)
 			// Move o personagem 5 casas na direção coletada
-			for i := 0; i < 70; i++ {
+			for i := 0; i < 5; i++ {
 				nx, ny := jogo.PosX+collect.X, jogo.PosY+collect.Y
 				if !jogoPodeMoverPara(jogo, nx, ny) {
 					break
 				}
-				jogoMoverElemento(jogo, jogo.PosX, jogo.PosY, collect.X, collect.Y)
+				// Salva o elemento que estava na nova posição
+				jogo.UltimoVisitado = jogo.Mapa[nx][ny]
+				// Move o personagem
 				jogo.PosX, jogo.PosY = nx, ny
 			}
 		}
@@ -84,6 +88,7 @@ func personagemMover(tecla rune, jogo *Jogo, starEvents <-chan GameEvent, collec
 		// Nenhum evento
 	}
 }
+
 // Define o que ocorre quando o jogador pressiona a tecla de interação
 // Neste exemplo, apenas exibe uma mensagem de status
 // Você pode expandir essa função para incluir lógica de interação com objetos
@@ -104,7 +109,7 @@ func personagemExecutarAcao(ev EventoTeclado, jogo *Jogo) bool {
 	case "mover":
 		// Move o personagem com base na tecla
 		// Adapte para passar o canal correto de coleta de estrela
-personagemMover(ev.Tecla, jogo, jogo.StarEvents, jogo.Collected)
+		personagemMover(ev.Tecla, jogo, jogo.StarEvents, jogo.Collected)
 		// Envia estado atualizado do jogador
 		jogoEnviarEstadoJogador(jogo)
 
@@ -128,8 +133,8 @@ func personagemExecutarAcaoComCanal(ev EventoTeclado, jogo *Jogo, playerChannel 
 		personagemInteragir(jogo)
 	case "mover":
 		// Move o personagem com base na tecla
-personagemMover(ev.Tecla, jogo, jogo.StarEvents, jogo.Collected)
-		
+		personagemMover(ev.Tecla, jogo, jogo.StarEvents, jogo.Collected)
+
 		// Enviar nova posição do jogador para o monstro
 		playerState := PlayerState{
 			X: jogo.PosX,
