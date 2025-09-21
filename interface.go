@@ -74,7 +74,9 @@ func interfaceDesenharJogo(jogo *Jogo) {
 	// Desenha o monstro se existir
 	if jogo.Monstro != nil {
 		interfaceDesenharElemento(jogo.Monstro.current_position.X, jogo.Monstro.current_position.Y, Inimigo)
+		
 	}
+	
 
 	// Desenha a barra de status
 	interfaceDesenharBarraDeStatus(jogo)

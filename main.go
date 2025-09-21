@@ -19,6 +19,12 @@ func main() {
 
 	// Inicializa o jogo
 	jogo := jogoNovo()
+
+	// Adiciona os canais extras necessários
+	jogo.StarEvents = make(chan GameEvent, 10)
+	jogo.Collected = make(chan PlayerCollect, 10)
+
+	// Carrega o mapa
 	if err := jogoCarregarMapa(mapaFile, &jogo); err != nil {
 		panic(err)
 	}
@@ -32,10 +38,16 @@ func main() {
 		go jogo.Monstro.Run(ctx, jogo.GameEvents, jogo.PlayerAlerts, jogo.PlayerState)
 	}
 
+
+	// Iniciar goroutine do StarBonus
+	starBonus := &StarBonus{}
+	go starBonus.Run(ctx, jogo.StarEvents, jogo.Collected)
+
 	// Iniciar goroutines dos itens de invisibilidade
 	for _, invisItem := range jogo.InvisibilityItems {
 		go invisItem.Run(ctx, jogo.GameEvents, jogo.PlayerCollects)
 	}
+
 
 	// Desenha o estado inicial do jogo
 	interfaceDesenharJogo(&jogo)
@@ -44,13 +56,14 @@ func main() {
 	for {
 		evento := interfaceLerEventoTeclado()
 		if continuar := personagemExecutarAcao(evento, &jogo); !continuar {
-			cancel() // Cancelar goroutine do monstro
+			cancel() // Cancelar goroutines do monstro e StarBonus
 			break
 		}
 
 		// Processar eventos do monstro
 		jogoProcessarEventos(&jogo)
 
+		// Atualiza a tela
 		interfaceDesenharJogo(&jogo)
 	}
 }

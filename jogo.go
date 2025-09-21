@@ -25,21 +25,23 @@ type Jogo struct {
 	// Itens de invisibilidade no mapa
 	InvisibilityItems []*Invisibility // lista de itens de invisibilidade
 	// Canais de comunicação
-	GameEvents     chan GameEvent     // canal para eventos do jogo
-	PlayerState    chan PlayerState   // canal para estado do jogador
-	PlayerAlerts   chan PlayerAlert   // canal para alertas do jogador
-	PlayerCollects chan PlayerCollect // canal para coletas do jogador
+	GameEvents   chan GameEvent   // canal para eventos do jogo
+	PlayerState  chan PlayerState // canal para estado do jogador
+	PlayerAlerts chan PlayerAlert // canal para alertas do jogador
+	StarEvents chan GameEvent   
+  Collected  chan PlayerCollect   // novo canal para avisar coleta
 }
 
 // Elementos visuais do jogo
 var (
-	Personagem          = Elemento{'☺', CorCinzaEscuro, CorPadrao, true}
-	Inimigo             = Elemento{'☠', CorVermelho, CorPadrao, true}
-	Parede              = Elemento{'▤', CorParede, CorFundoParede, true}
-	Vegetacao           = Elemento{'♣', CorVerde, CorPadrao, false}
-	Vazio               = Elemento{' ', CorPadrao, CorPadrao, false}
-	InvisibilityItem    = Elemento{'¤', CorAmarelo, CorPadrao, false}
+	Personagem = Elemento{'☺', CorCinzaEscuro, CorPadrao, true}
+	Inimigo    = Elemento{'☠', CorVermelho, CorPadrao, true}
+	Parede     = Elemento{'▤', CorParede, CorFundoParede, true}
+	Vegetacao  = Elemento{'♣', CorVerde, CorPadrao, false}
+	Vazio      = Elemento{' ', CorPadrao, CorPadrao, false}
+  InvisibilityItem    = Elemento{'¤', CorAmarelo, CorPadrao, false}
 	PersonagemInvisivel = Elemento{'☺', CorTexto, CorPadrao, true}
+	Estrela	= Elemento{'*', CorAmarelo, CorPadrao, false}
 )
 
 // Cria e retorna uma nova instância do jogo
@@ -96,6 +98,9 @@ func jogoCarregarMapa(nome string, jogo *Jogo) error {
 				jogo.InvisibilityItems = append(jogo.InvisibilityItems, invisItem)
 			case Personagem.simbolo:
 				jogo.PosX, jogo.PosY = x, y // registra a posição inicial do personagem
+			
+			case Estrela.simbolo:
+				e = Estrela
 			}
 			linhaElems = append(linhaElems, e)
 		}
@@ -225,6 +230,9 @@ func jogoTratarEvento(jogo *Jogo, event GameEvent) {
 }
 
 // Envia estado atual do jogador para o monstro
+// (Função mantida para uso futuro ou integração, suprimindo erro de função não utilizada)
+var _ = jogoEnviarEstadoJogador
+
 func jogoEnviarEstadoJogador(jogo *Jogo) {
 	select {
 	case jogo.PlayerState <- PlayerState{X: jogo.PosX, Y: jogo.PosY}:
@@ -251,3 +259,6 @@ func jogoEnviarAlerta(jogo *Jogo, tipoAlerta string) {
 		// Canal cheio, pular este envio
 	}
 }
+
+// Suprime erro de função não utilizada
+var _ = jogoEnviarAlerta
