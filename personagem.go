@@ -20,11 +20,46 @@ func personagemMover(tecla rune, jogo *Jogo) {
 		dx = 1 // Move para a direita
 	}
 
-	nx, ny := jogo.PosX+dx, jogo.PosY+dy
+	// Verificar se tem pulos duplos disponíveis
+	stepSize := 1
+	if jogo.DoubleJumps > 0 {
+		stepSize = 2
+		jogo.StatusMsg = fmt.Sprintf("Pulo duplo! Restam %d pulos", jogo.DoubleJumps-1)
+	}
+
+	nx, ny := jogo.PosX+(dx*stepSize), jogo.PosY+(dy*stepSize)
+
 	// Verifica se o movimento é permitido e realiza a movimentação
 	if jogoPodeMoverPara(jogo, nx, ny) {
-		jogoMoverElemento(jogo, jogo.PosX, jogo.PosY, dx, dy)
+		// Se for pulo duplo, verificar se a posição intermediária também é válida
+		if stepSize == 2 {
+			intermediateX, intermediateY := jogo.PosX+dx, jogo.PosY+dy
+			if !jogoPodeMoverPara(jogo, intermediateX, intermediateY) {
+				// Se a posição intermediária não é válida, fazer movimento normal
+				nx, ny = jogo.PosX+dx, jogo.PosY+dy
+				stepSize = 1
+				if !jogoPodeMoverPara(jogo, nx, ny) {
+					return // Não pode mover
+				}
+				jogo.StatusMsg = fmt.Sprintf("Pulo duplo bloqueado! Restam %d pulos", jogo.DoubleJumps)
+			} else {
+				// Pulo duplo realizado com sucesso, decrementar contador
+				jogo.DoubleJumps--
+				if jogo.DoubleJumps == 0 {
+					jogo.StatusMsg = "Último pulo duplo usado!"
+				}
+			}
+		}
+
+		jogoMoverElemento(jogo, jogo.PosX, jogo.PosY, dx*stepSize, dy*stepSize)
 		jogo.PosX, jogo.PosY = nx, ny
+
+		// DETECÇÃO DIRETA: Verificar se coletou estrela
+		coletouEstrela := ConsumirItemEstrela(jogo)
+		if coletouEstrela {
+			jogo.DoubleJumps = 3 // Concede 3 pulos duplos
+			jogo.StatusMsg = "Estrela coletada! 3 pulos duplos concedidos!"
+		}
 
 		// DETECÇÃO DIRETA: Verificar se coletou item de invisibilidade
 		coletouInvisibilidade := ConsumirItemInvisibilidade(jogo)
@@ -46,7 +81,7 @@ func personagemMover(tecla rune, jogo *Jogo) {
 		}
 
 		// Atualizar contador de invisibilidade (apenas se não coletou neste turno)
-		if !coletouInvisibilidade && jogo.InvisibleSteps > 0 {
+		if !coletouInvisibilidade && !coletouEstrela && jogo.InvisibleSteps > 0 {
 			jogo.InvisibleSteps--
 			if jogo.InvisibleSteps == 0 {
 				jogo.StatusMsg = "Invisibilidade expirou"
@@ -54,10 +89,31 @@ func personagemMover(tecla rune, jogo *Jogo) {
 				jogo.StatusMsg = fmt.Sprintf("Invisível: %d movimentos restantes", jogo.InvisibleSteps)
 			}
 		}
-	}
-}
+	} else {
+		// Se não pode mover com pulo duplo, tentar movimento normal
+		if stepSize == 2 {
+			nx, ny = jogo.PosX+dx, jogo.PosY+dy
+			if jogoPodeMoverPara(jogo, nx, ny) {
+				jogoMoverElemento(jogo, jogo.PosX, jogo.PosY, dx, dy)
+				jogo.PosX, jogo.PosY = nx, ny
+				jogo.StatusMsg = fmt.Sprintf("Pulo duplo bloqueado - movimento normal. Restam %d pulos", jogo.DoubleJumps)
 
-// Define o que ocorre quando o jogador pressiona a tecla de interação
+				// Verificar coletas mesmo com movimento normal
+				coletouEstrela := ConsumirItemEstrela(jogo)
+				if coletouEstrela {
+					jogo.DoubleJumps = 3
+					jogo.StatusMsg = "Estrela coletada! 3 pulos duplos concedidos!"
+				}
+
+				coletouInvisibilidade := ConsumirItemInvisibilidade(jogo)
+				if coletouInvisibilidade {
+					jogo.InvisibleSteps = InvisibilityDuration
+					jogo.StatusMsg = "Invisibilidade coletada!"
+				}
+			}
+		}
+	}
+} // Define o que ocorre quando o jogador pressiona a tecla de interação
 // Neste exemplo, apenas exibe uma mensagem de status
 // Você pode expandir essa função para incluir lógica de interação com objetos
 func personagemInteragir(jogo *Jogo) {

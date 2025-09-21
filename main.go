@@ -37,6 +37,24 @@ func main() {
 		go invisItem.Run(ctx, jogo.GameEvents, jogo.PlayerCollects)
 	}
 
+	// Iniciar goroutines das estrelas
+	for _, star := range jogo.Stars {
+		go star.Run(ctx, jogo.GameEvents, jogo.PlayerState, jogo.PlayerCollects, jogo.StarCommands, jogo.MapMutex)
+	}
+
+	// Iniciar goroutine para gerenciar exclusão mútua do mapa
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case responseChan := <-jogo.MapMutex:
+				// Concede acesso imediato (mutex simples)
+				responseChan <- true
+			}
+		}
+	}()
+
 	// Desenha o estado inicial do jogo
 	interfaceDesenharJogo(&jogo)
 

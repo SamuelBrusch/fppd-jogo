@@ -14,14 +14,14 @@ type Cor = termbox.Attribute
 
 // Definições de cores utilizadas no jogo
 const (
-	CorPadrao     Cor = termbox.ColorDefault
-	CorCinzaEscuro    = termbox.ColorDarkGray
-	CorVermelho       = termbox.ColorRed
-	CorVerde          = termbox.ColorGreen
-	CorParede         = termbox.ColorBlack | termbox.AttrBold | termbox.AttrDim
-	CorFundoParede    = termbox.ColorDarkGray
-	CorTexto          = termbox.ColorDarkGray
-	CorAmarelo        = termbox.ColorYellow
+	CorPadrao      Cor = termbox.ColorDefault
+	CorCinzaEscuro     = termbox.ColorDarkGray
+	CorVermelho        = termbox.ColorRed
+	CorVerde           = termbox.ColorGreen
+	CorParede          = termbox.ColorBlack | termbox.AttrBold | termbox.AttrDim
+	CorFundoParede     = termbox.ColorDarkGray
+	CorTexto           = termbox.ColorDarkGray
+	CorAmarelo         = termbox.ColorYellow
 )
 
 // EventoTeclado representa uma ação detectada do teclado (como mover, sair ou interagir)
@@ -74,6 +74,14 @@ func interfaceDesenharJogo(jogo *Jogo) {
 	// Desenha o monstro se existir
 	if jogo.Monstro != nil {
 		interfaceDesenharElemento(jogo.Monstro.current_position.X, jogo.Monstro.current_position.Y, Inimigo)
+	}
+
+	// Desenha as estrelas
+	for _, star := range jogo.Stars {
+		if star.IsVisible {
+			starElement := jogoGetStarElement(star)
+			interfaceDesenharElemento(star.X, star.Y, starElement)
+		}
 	}
 
 	// Desenha a barra de status

@@ -3,6 +3,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 )
 
@@ -21,14 +22,19 @@ type Jogo struct {
 	UltimoVisitado Elemento     // elemento que estava na posição do personagem antes de mover
 	StatusMsg      string       // mensagem para a barra de status
 	InvisibleSteps int          // contador de invisibilidade do personagem (em passos)
+	DoubleJumps    int          // contador de pulos duplos restantes
 	Monstro        *Monster     // instância do monstro
 	// Itens de invisibilidade no mapa
 	InvisibilityItems []*Invisibility // lista de itens de invisibilidade
+	// Estrelas no mapa
+	Stars []*Star // lista de estrelas
 	// Canais de comunicação
 	GameEvents     chan GameEvent     // canal para eventos do jogo
 	PlayerState    chan PlayerState   // canal para estado do jogador
 	PlayerAlerts   chan PlayerAlert   // canal para alertas do jogador
 	PlayerCollects chan PlayerCollect // canal para coletas do jogador
+	StarCommands   chan StarCommand   // canal para comandos das estrelas
+	MapMutex       chan chan bool     // canal para exclusão mútua do mapa
 }
 
 // Elementos visuais do jogo
@@ -40,6 +46,11 @@ var (
 	Vazio               = Elemento{' ', CorPadrao, CorPadrao, false}
 	InvisibilityItem    = Elemento{'¤', CorAmarelo, CorPadrao, false}
 	PersonagemInvisivel = Elemento{'☺', CorTexto, CorPadrao, true}
+	// Elementos visuais das estrelas
+	StarElementVisible   = Elemento{'★', CorAmarelo, CorPadrao, false}
+	StarElementInvisible = Elemento{' ', CorPadrao, CorPadrao, false}
+	StarElementPulsing   = Elemento{'✦', CorCinzaEscuro, CorPadrao, false}
+	StarElementCharging  = Elemento{'◉', CorVermelho, CorPadrao, false}
 )
 
 // Cria e retorna uma nova instância do jogo
@@ -52,6 +63,8 @@ func jogoNovo() Jogo {
 		PlayerState:    make(chan PlayerState, 10),
 		PlayerAlerts:   make(chan PlayerAlert, 10),
 		PlayerCollects: make(chan PlayerCollect, 10),
+		StarCommands:   make(chan StarCommand, 10),
+		MapMutex:       make(chan chan bool, 1),
 	}
 }
 
@@ -94,6 +107,9 @@ func jogoCarregarMapa(nome string, jogo *Jogo) error {
 					Y: y,
 				}
 				jogo.InvisibilityItems = append(jogo.InvisibilityItems, invisItem)
+			case '★': // Caractere de estrela
+				e = StarElementVisible
+				// Estrela será tratada como item coletável no UltimoVisitado
 			case Personagem.simbolo:
 				jogo.PosX, jogo.PosY = x, y // registra a posição inicial do personagem
 			}
@@ -221,6 +237,46 @@ func jogoTratarEvento(jogo *Jogo, event GameEvent) {
 				jogo.Mapa[data.Y][data.X] = Vazio
 			}
 		}
+		// Remover estrela do mapa
+		if data, ok := event.Data.(StarBonus); ok {
+			if data.X == jogo.PosX && data.Y == jogo.PosY {
+				jogo.UltimoVisitado = Vazio
+			} else if data.Y >= 0 && data.Y < len(jogo.Mapa) &&
+				data.X >= 0 && data.X < len(jogo.Mapa[data.Y]) {
+				jogo.Mapa[data.Y][data.X] = Vazio
+			}
+		}
+	// Eventos das estrelas
+	case EventStarCollected:
+		if data, ok := event.Data.(StarCollectedData); ok {
+			jogo.StatusMsg = fmt.Sprintf("Estrela coletada! %s +%d", data.BonusType, data.Value)
+		}
+	case EventStarStateChange:
+		if data, ok := event.Data.(StarStateChangeData); ok {
+			jogo.StatusMsg = fmt.Sprintf("Estrela %s mudou de estado", data.StarID)
+		}
+	case EventStarPulse:
+		if data, ok := event.Data.(StarPulseData); ok {
+			jogo.StatusMsg = fmt.Sprintf("Estrela pulsando (%d pulsos)", data.PulseCount)
+		}
+	case EventStarCharged:
+		if data, ok := event.Data.(StarChargedData); ok {
+			jogo.StatusMsg = fmt.Sprintf("Estrela carregada! Energia: %d", data.Energy)
+		}
+	case EventStarTimeout:
+		if data, ok := event.Data.(StarTimeoutData); ok {
+			jogo.StatusMsg = data.Message
+		}
+	case EventStarCommunicate:
+		if data, ok := event.Data.(StarCommunicationData); ok {
+			jogo.StatusMsg = fmt.Sprintf("Estrelas comunicando: %s", data.Message)
+		}
+	case "ApplyDoubleJump":
+		// Boost de pulo duplo foi coletado
+		if data, ok := event.Data.(DoubleJumpApplied); ok {
+			jogo.DoubleJumps = data.Jumps
+			jogo.StatusMsg = "Estrela coletada! Pulo duplo ativado!"
+		}
 	}
 }
 
@@ -249,5 +305,53 @@ func jogoEnviarAlerta(jogo *Jogo, tipoAlerta string) {
 		// Alerta enviado com sucesso
 	default:
 		// Canal cheio, pular este envio
+	}
+}
+
+// Gerencia exclusão mútua do mapa usando canais
+func jogoGerenciarMapMutex(jogo *Jogo) {
+	for responseChan := range jogo.MapMutex {
+		// Concede acesso ao mapa
+		responseChan <- true
+	}
+}
+
+// Envia comando para estrelas
+func jogoEnviarComandoEstrela(jogo *Jogo, command StarCommand) {
+	select {
+	case jogo.StarCommands <- command:
+		// Comando enviado com sucesso
+	default:
+		// Canal cheio, pular este envio
+	}
+}
+
+// NOVO: remove a estrela "sob" o jogador, substituindo-a por Vazio.
+func ConsumirItemEstrela(jogo *Jogo) bool {
+	// Se o elemento "embaixo do jogador" for a estrela, consome-a
+	if jogo.UltimoVisitado.simbolo == StarElementVisible.simbolo {
+		jogo.UltimoVisitado = Vazio
+		return true
+	}
+	return false
+}
+
+// Obtém elemento visual da estrela baseado no estado
+func jogoGetStarElement(star *Star) Elemento {
+	if !star.IsVisible {
+		return StarElementInvisible
+	}
+
+	switch star.State {
+	case StarVisible:
+		return StarElementVisible
+	case StarInvisible:
+		return StarElementInvisible
+	case StarPulsing:
+		return StarElementPulsing
+	case StarCharging:
+		return StarElementCharging
+	default:
+		return StarElementVisible
 	}
 }

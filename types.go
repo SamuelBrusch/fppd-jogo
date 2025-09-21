@@ -61,3 +61,8 @@ type PlayerCollect struct {
 	X, Y int // Posição onde o jogador coletou algo
 	// Adicionar outros campos conforme necessário
 }
+
+// Payload para aplicação de pulo duplo
+type DoubleJumpApplied struct {
+	Jumps int // Número de pulos duplos concedidos
+}
