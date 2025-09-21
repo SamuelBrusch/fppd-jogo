@@ -21,6 +21,7 @@ const (
 	CorParede          = termbox.ColorBlack | termbox.AttrBold | termbox.AttrDim
 	CorFundoParede     = termbox.ColorDarkGray
 	CorTexto           = termbox.ColorDarkGray
+	CorAmarelo         = termbox.ColorYellow
 )
 
 // EventoTeclado representa uma ação detectada do teclado (como mover, sair ou interagir)
@@ -73,7 +74,9 @@ func interfaceDesenharJogo(jogo *Jogo) {
 	// Desenha o monstro se existir
 	if jogo.Monstro != nil {
 		interfaceDesenharElemento(jogo.Monstro.current_position.X, jogo.Monstro.current_position.Y, Inimigo)
+		
 	}
+	
 
 	// Desenha a barra de status
 	interfaceDesenharBarraDeStatus(jogo)

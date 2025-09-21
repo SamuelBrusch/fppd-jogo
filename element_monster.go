@@ -101,7 +101,7 @@ func (m *Monster) shouldMove() bool {
 	return false
 } // Processa nova posição do jogador e detecta se pode ver (25 células)
 func (m *Monster) updatePlayerPosition(playerState PlayerState) {
-	playerPos := Position{X: playerState.X, Y: playerState.Y}
+	playerPos := Position(playerState)
 
 	// Calcula distância até o jogador
 	if m.canSeePlayer(playerPos) {
