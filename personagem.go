@@ -25,7 +25,28 @@ func personagemMover(tecla rune, jogo *Jogo) {
 	if jogoPodeMoverPara(jogo, nx, ny) {
 		jogoMoverElemento(jogo, jogo.PosX, jogo.PosY, dx, dy)
 		jogo.PosX, jogo.PosY = nx, ny
+
+		active := verificaEncontroItemInvisibilidade(jogo)
+
+		if !active && jogo.InvisibleSteps > 0{
+			jogo.InvisibleSteps--
+			if jogo.InvisibleSteps == 0 {
+				jogo.StatusMsg = "Invisibilidade expirou"
+			} else {
+				jogo.StatusMsg = fmt.Sprintf("Invisível: %d movimentos restantes", jogo.InvisibleSteps)
+			}
+		}
 	}
+}
+
+func verificaEncontroItemInvisibilidade(jogo *Jogo) bool {
+    // Se o elemento sob o jogador (destino anterior) é o item, imprime a mensagem
+    if ConsumirItemInvisibilidade(jogo){
+		jogo.StatusMsg = "Invisibilidade coletada!"
+		jogo.InvisibleSteps = InvisibilityDuration
+		return true
+    }
+	return false
 }
 
 // Define o que ocorre quando o jogador pressiona a tecla de interação

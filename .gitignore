@@ -6,6 +6,8 @@ jogo.exe
 
 # Arquivos de dependências Go (opcionais)
 go.sum
+go.mod
+
 
 # Arquivos temporários
 *.tmp
